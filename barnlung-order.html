@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>บ้านลุง - สั่งอาหาร</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #c0392b; --primary-dark: #96281b; --primary-light: #f9e5e3;
+    --accent: #e67e22; --gold: #f1c40f; --dark: #1a0a00;
+    --text: #2c1810; --text-muted: #7d5a4f;
+    --bg: #fdf8f5; --surface: #ffffff; --border: #e8d5cc;
+    --success: #27ae60; --success-light: #e8f8f0;
+    --radius: 14px; --shadow: 0 4px 24px rgba(192,57,43,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Sarabun', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+  .page { display: none; min-height: 100vh; flex-direction: column; }
+  .page.active { display: flex; }
+
+  .header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  }
+  .header-title { font-family: 'Prompt', sans-serif; color: #fff; font-size: 18px; font-weight: 600; }
+  .header-sub { color: rgba(255,255,255,0.75); font-size: 12px; margin-top: 1px; }
+  .back-btn {
+    background: rgba(255,255,255,0.2); border: none; color: #fff;
+    width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+    font-size: 18px; display: flex; align-items: center; justify-content: center; transition: background 0.2s;
+  }
+  .back-btn:hover { background: rgba(255,255,255,0.35); }
+  .qr-trigger {
+    background: rgba(255,255,255,0.2); border: none; color: #fff;
+    padding: 6px 12px; border-radius: 20px; font-size: 13px; cursor: pointer; transition: background 0.2s;
+  }
+  .qr-trigger:hover { background: rgba(255,255,255,0.35); }
+
+  .cat-tabs {
+    background: var(--surface); padding: 0 16px;
+    display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--border);
+    position: sticky; top: 60px; z-index: 90;
+  }
+  .cat-tabs::-webkit-scrollbar { display: none; }
+  .cat-tab {
+    padding: 12px 16px; white-space: nowrap; cursor: pointer;
+    font-size: 14px; font-weight: 500; color: var(--text-muted);
+    border-bottom: 3px solid transparent; transition: all 0.2s;
+    background: none; border-top: none; border-left: none; border-right: none;
+  }
+  .cat-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+  .menu-list { padding: 12px 16px; flex: 1; }
+  .menu-item {
+    background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border);
+    margin-bottom: 10px; display: flex; align-items: center; gap: 12px; padding: 12px; transition: all 0.2s;
+  }
+  .menu-item:hover { box-shadow: var(--shadow); }
+  .menu-emoji { font-size: 40px; width: 52px; text-align: center; flex-shrink: 0; }
+  .menu-info { flex: 1; min-width: 0; }
+  .menu-name { font-weight: 600; font-size: 15px; margin-bottom: 2px; }
+  .menu-desc { font-size: 12px; color: var(--text-muted); }
+  .menu-price { font-family: 'Prompt', sans-serif; font-weight: 700; color: var(--primary); font-size: 15px; margin-top: 4px; }
+  .menu-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .qty-btn {
+    width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--primary);
+    background: none; color: var(--primary); font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-weight: 700; transition: all 0.15s;
+  }
+  .qty-btn:hover { background: var(--primary); color: #fff; }
+  .qty-display { font-weight: 700; font-size: 15px; min-width: 20px; text-align: center; }
+
+  .cart-bar {
+    background: var(--primary); padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; position: sticky; bottom: 0;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.15); transition: background 0.2s;
+  }
+  .cart-bar:hover { background: var(--primary-dark); }
+  .cart-bar-left { display: flex; align-items: center; gap: 10px; }
+  .cart-count {
+    background: var(--gold); color: var(--dark); width: 26px; height: 26px;
+    border-radius: 50%; font-weight: 700; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cart-bar-label { color: #fff; font-weight: 600; font-size: 15px; }
+  .cart-bar-total { color: var(--gold); font-family: 'Prompt', sans-serif; font-weight: 700; font-size: 16px; }
+
+  #page-cart { background: var(--bg); }
+  .cart-list { padding: 16px; flex: 1; }
+  .cart-item {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px;
+  }
+  .cart-item-emoji { font-size: 32px; }
+  .cart-item-info { flex: 1; }
+  .cart-item-name { font-weight: 600; font-size: 14px; }
+  .cart-item-price { color: var(--text-muted); font-size: 13px; }
+  .cart-item-total { font-family: 'Prompt', sans-serif; font-weight: 700; color: var(--primary); font-size: 15px; }
+  .cart-remove { background: none; border: none; color: #e74c3c; font-size: 20px; cursor: pointer; padding: 4px; }
+  .cart-summary {
+    background: var(--surface); margin: 0 16px 16px; border-radius: var(--radius);
+    border: 1px solid var(--border); padding: 16px;
+  }
+  .summary-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+  .summary-row.total { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 12px; font-weight: 700; font-size: 16px; }
+  .note-box {
+    margin: 0 16px 16px; background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--border); padding: 16px;
+  }
+  .note-label { font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+  .note-input {
+    width: 100%; border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px; font-family: 'Sarabun', sans-serif; font-size: 14px; resize: none; color: var(--text);
+  }
+  .note-input:focus { outline: none; border-color: var(--primary); }
+  .order-btn {
+    margin: 0 16px 24px; padding: 16px;
+    background: var(--success); color: #fff; border: none; border-radius: var(--radius);
+    font-family: 'Prompt', sans-serif; font-size: 16px; font-weight: 600;
+    cursor: pointer; width: calc(100% - 32px);
+    transition: all 0.2s; box-shadow: 0 4px 16px rgba(39,174,96,0.3);
+  }
+  .order-btn:hover { background: #219a52; transform: translateY(-1px); }
+  .order-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+  .empty-cart { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+  .empty-cart .empty-icon { font-size: 64px; margin-bottom: 16px; }
+
+  #page-kitchen { background: #1a1a1a; color: #fff; }
+  .kitchen-header {
+    background: #111; padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+  .kitchen-title { font-family: 'Prompt', sans-serif; font-size: 18px; font-weight: 700; color: #fff; }
+  .kitchen-time { color: #aaa; font-size: 14px; }
+  .kitchen-list { padding: 16px; flex: 1; overflow-y: auto; }
+  .kitchen-order-card {
+    background: #2a2a2a; border-radius: var(--radius); padding: 16px;
+    margin-bottom: 12px; border-left: 5px solid var(--accent);
+    animation: slideIn 0.4s ease;
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+  .kitchen-order-card.done { border-left-color: var(--success); opacity: 0.55; }
+  .k-order-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .k-order-num { font-family: 'Prompt', sans-serif; font-size: 16px; font-weight: 700; }
+  .k-order-time { font-size: 13px; color: #aaa; }
+  .k-items { list-style: none; }
+  .k-items li { padding: 5px 0; font-size: 14px; border-bottom: 1px solid #3a3a3a; display: flex; gap: 8px; }
+  .k-items li:last-child { border: none; }
+  .k-qty { color: var(--accent); font-weight: 700; }
+  .k-note { background: #333; border-radius: 8px; padding: 8px 10px; margin-top: 10px; font-size: 13px; color: #ccc; }
+  .k-done-btn {
+    margin-top: 12px; padding: 10px; width: 100%;
+    background: var(--success); color: #fff; border: none; border-radius: 8px;
+    font-family: 'Prompt', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+  }
+  .k-done-btn.undo { background: #555; }
+  .k-done-btn:hover { filter: brightness(1.1); }
+  .kitchen-empty { text-align: center; padding: 80px 20px; color: #555; }
+  .kitchen-empty .k-empty-icon { font-size: 64px; margin-bottom: 12px; }
+
+  #page-bill { background: var(--bg); }
+  .bill-search {
+    margin: 16px; background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--border); padding: 16px;
+    display: flex; gap: 10px; align-items: center;
+  }
+  .bill-input {
+    flex: 1; border: 1.5px solid var(--border); border-radius: 10px;
+    padding: 10px 14px; font-family: 'Sarabun', sans-serif; font-size: 16px; color: var(--text);
+  }
+  .bill-input:focus { outline: none; border-color: var(--primary); }
+  .bill-search-btn {
+    background: var(--primary); color: #fff; border: none;
+    border-radius: 10px; padding: 10px 20px;
+    font-family: 'Prompt', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+  }
+  .bill-search-btn:hover { background: var(--primary-dark); }
+  .bill-content { padding: 0 16px 32px; flex: 1; }
+  .bill-empty { text-align: center; padding: 40px 20px; color: var(--text-muted); line-height: 1.8; }
+  .bill-table-header {
+    font-family: 'Prompt', sans-serif; font-size: 16px; font-weight: 700;
+    margin-bottom: 12px; color: var(--text);
+  }
+  .bill-order-block {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 10px; overflow: hidden;
+  }
+  .bill-order-head {
+    background: var(--bg); padding: 10px 14px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .bill-order-label { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+  .bill-order-time { font-size: 12px; color: var(--text-muted); }
+  .bill-item-row { display: flex; justify-content: space-between; padding: 9px 14px; font-size: 14px; border-bottom: 1px solid var(--border); }
+  .bill-item-row:last-child { border: none; }
+  .bill-grand {
+    background: var(--primary-light); border: 2px solid var(--primary); border-radius: var(--radius);
+    padding: 16px; margin-top: 16px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .bill-grand-label { font-family: 'Prompt', sans-serif; font-size: 15px; font-weight: 700; color: var(--primary); }
+  .bill-grand-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .bill-grand-amount { font-family: 'Prompt', sans-serif; font-size: 24px; font-weight: 700; color: var(--primary); }
+  .bill-counter-note {
+    text-align: center; margin-top: 12px; padding: 14px;
+    background: var(--success-light); border-radius: var(--radius);
+    color: var(--success); font-weight: 600; font-size: 15px;
+  }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); z-index: 200;
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: 20px; padding: 28px 24px;
+    width: 100%; max-width: 340px; text-align: center;
+  }
+  .modal h3 { font-family: 'Prompt', sans-serif; font-size: 18px; margin-bottom: 6px; }
+  .modal p { color: var(--text-muted); font-size: 14px; margin-bottom: 20px; }
+  .modal-icon { font-size: 52px; margin-bottom: 10px; }
+  .table-input-wrap { display: flex; border: 2px solid var(--primary); border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
+  .table-prefix { background: var(--primary); color: #fff; padding: 12px 14px; font-weight: 600; font-size: 15px; white-space: nowrap; }
+  .table-num-input {
+    flex: 1; border: none; padding: 12px; font-family: 'Prompt', sans-serif;
+    font-size: 22px; font-weight: 700; color: var(--text); text-align: center; outline: none;
+  }
+  .modal-confirm-btn {
+    width: 100%; padding: 14px; background: var(--success); color: #fff;
+    border: none; border-radius: 12px; font-family: 'Prompt', sans-serif;
+    font-size: 15px; font-weight: 600; cursor: pointer; margin-bottom: 10px; transition: background 0.2s;
+  }
+  .modal-confirm-btn:hover { background: #219a52; }
+  .modal-cancel-btn {
+    width: 100%; padding: 12px; background: none; color: var(--text-muted);
+    border: 1.5px solid var(--border); border-radius: 12px; font-family: 'Prompt', sans-serif;
+    font-size: 14px; cursor: pointer; transition: all 0.2s;
+  }
+  .modal-cancel-btn:hover { background: var(--bg); }
+  .order-done-icon { font-size: 56px; margin-bottom: 10px; animation: pop 0.5s ease; }
+  @keyframes pop { 0% { transform: scale(0); } 80% { transform: scale(1.15); } 100% { transform: scale(1); } }
+
+  .qr-modal-box { background: #fff; border-radius: 20px; padding: 28px 24px; width: 300px; text-align: center; }
+  .qr-modal-box h3 { font-family: 'Prompt', sans-serif; font-size: 18px; margin-bottom: 4px; }
+  .qr-modal-box p { color: var(--text-muted); font-size: 13px; margin-bottom: 16px; }
+  .modal-close {
+    width: 100%; padding: 12px; background: var(--primary); color: #fff;
+    border: none; border-radius: 10px; font-family: 'Prompt', sans-serif;
+    font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px;
+  }
+
+  .owner-btn {
+    background: rgba(255,255,255,0.2); border: none; color: #fff;
+    padding: 6px 12px; border-radius: 20px; font-size: 13px; cursor: pointer;
+    transition: background 0.2s; display: flex; align-items: center; gap: 5px;
+  }
+  .owner-btn:hover { background: rgba(255,255,255,0.35); }
+  .owner-btn.active { background: var(--gold); color: var(--dark); }
+  .price-el { transition: opacity 0.3s; }
+  body.hide-prices .price-el { opacity: 0; pointer-events: none; user-select: none; }
+  body.hide-prices .price-el::after { content: '---'; opacity: 0.3; }
+  .pin-modal { background: #fff; border-radius: 20px; padding: 28px 24px; width: 100%; max-width: 300px; text-align: center; }
+  .pin-modal h3 { font-family: 'Prompt', sans-serif; font-size: 18px; margin-bottom: 6px; }
+  .pin-modal p { color: var(--text-muted); font-size: 13px; margin-bottom: 16px; }
+  .pin-input {
+    width: 100%; border: 2px solid var(--border); border-radius: 12px;
+    padding: 12px; font-family: 'Prompt', sans-serif; font-size: 24px;
+    font-weight: 700; text-align: center; letter-spacing: 8px;
+    color: var(--text); outline: none; margin-bottom: 14px;
+  }
+  .pin-input:focus { border-color: var(--primary); }
+  .pin-error { color: #e74c3c; font-size: 13px; margin-bottom: 10px; min-height: 18px; }
+  .url-input-field {
+    width: 100%; border: 1.5px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; font-family: 'Sarabun', sans-serif; font-size: 13px;
+    color: var(--text); outline: none; margin-bottom: 12px;
+  }
+  .url-input-field:focus { border-color: var(--primary); }
+  .fab-wrap { position: fixed; bottom: 24px; right: 16px; display: flex; flex-direction: column; gap: 10px; z-index: 50; }
+  .fab {
+    border: none; border-radius: 50px; padding: 10px 18px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); transition: all 0.2s;
+  }
+  .fab:hover { transform: scale(1.05); }
+  .fab-kitchen { background: #1a1a1a; color: #fff; }
+  .fab-bill { background: var(--surface); color: var(--primary); border: 1.5px solid var(--primary); }
+  .kitchen-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+</style>
+</head>
+<body>
+
+<!-- PAGE: MENU -->
+<div id="page-menu" class="page active">
+  <div class="header">
+    <div>
+      <div class="header-title">🏡 บ้านลุง</div>
+      <div class="header-sub">อาหารไทยต้นตำรับ</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="owner-btn" id="owner-btn" onclick="toggleOwnerMode()">🔒 เจ้าของร้าน</button>
+      <button class="qr-trigger" onclick="openQR()">QR 📱</button>
+    </div>
+  </div>
+  <div class="cat-tabs" id="cat-tabs"></div>
+  <div class="menu-list" id="menu-list"></div>
+  <div class="cart-bar" id="cart-bar" onclick="showPage('cart')" style="display:none;">
+    <div class="cart-bar-left">
+      <div class="cart-count" id="cart-count">0</div>
+      <span class="cart-bar-label">ดูตะกร้าสินค้า</span>
+    </div>
+    <span class="cart-bar-total" id="cart-bar-total">฿0</span>
+  </div>
+  <div class="fab-wrap">
+    <button class="fab fab-kitchen" onclick="showPage('kitchen')"><span class="kitchen-dot"></span> ครัว</button>
+    <button class="fab fab-bill" onclick="showPage('bill')">📋 ยอดโต๊ะ</button>
+  </div>
+</div>
+
+<!-- PAGE: CART -->
+<div id="page-cart" class="page">
+  <div class="header">
+    <div class="header-title">🛒 ตะกร้าสินค้า</div>
+    <button class="back-btn" onclick="showPage('menu')">←</button>
+  </div>
+  <div class="cart-list" id="cart-list"></div>
+  <div class="note-box">
+    <div class="note-label">📝 หมายเหตุเพิ่มเติม</div>
+    <textarea class="note-input" id="order-note" rows="2" placeholder="เช่น ไม่เผ็ด, ไม่ใส่ผัก, แยกจาน..."></textarea>
+  </div>
+  <div class="cart-summary" id="cart-summary"></div>
+  <button class="order-btn" id="order-btn" onclick="openTableModal()">✅ สั่งอาหาร — กรอกโต๊ะ</button>
+</div>
+
+<!-- PAGE: KITCHEN -->
+<div id="page-kitchen" class="page">
+  <div class="kitchen-header">
+    <div class="kitchen-title">🔥 หน้าจอครัว</div>
+    <div class="kitchen-time" id="kitchen-time"></div>
+    <button class="back-btn" onclick="showPage('menu')">←</button>
+  </div>
+  <div class="kitchen-list" id="kitchen-list"></div>
+</div>
+
+<!-- PAGE: BILL -->
+<div id="page-bill" class="page">
+  <div class="header">
+    <div>
+      <div class="header-title">📋 ยอดรวมโต๊ะ</div>
+      <div class="header-sub" id="bill-header-sub"></div>
+    </div>
+    <button class="back-btn" onclick="showPage('menu')">←</button>
+  </div>
+
+  <!-- ลูกค้า: เห็นแค่โต๊ะตัวเอง -->
+  <div id="bill-customer" style="display:none;">
+    <div class="bill-content" id="bill-content-customer">
+      <div class="bill-empty">🧾 ยังไม่มีออเดอร์<br>กลับไปสั่งอาหารก่อนนะครับ</div>
+    </div>
+  </div>
+
+  <!-- เจ้าของร้าน: ค้นหาทุกโต๊ะ -->
+  <div id="bill-owner" style="display:none;">
+    <div class="bill-search">
+      <input class="bill-input" type="number" id="bill-table-input" placeholder="เลขโต๊ะ เช่น 3" min="1">
+      <button class="bill-search-btn" onclick="lookupBill()">ดูยอด</button>
+    </div>
+    <div class="bill-content" id="bill-content-owner">
+      <div class="bill-empty">🧾 พิมพ์เลขโต๊ะแล้วกด "ดูยอด"</div>
+    </div>
+  </div>
+
+  <!-- ไม่มีโต๊ะ: ยังไม่ได้สั่ง -->
+  <div id="bill-notable" style="display:none;text-align:center;padding:60px 24px;">
+    <div style="font-size:64px;margin-bottom:16px;">🪑</div>
+    <div style="font-family:'Prompt',sans-serif;font-size:18px;font-weight:600;margin-bottom:8px;">ยังไม่ได้สั่งอาหาร</div>
+    <div style="color:var(--text-muted);font-size:14px;">กลับไปเลือกเมนูและสั่งอาหารก่อนนะครับ</div>
+  </div>
+</div>
+
+<!-- MODAL: กรอกโต๊ะ -->
+<div class="modal-overlay" id="table-modal">
+  <div class="modal">
+    <div class="modal-icon">🪑</div>
+    <h3>นั่งโต๊ะไหนครับ?</h3>
+    <p>กรอกเลขโต๊ะของคุณก่อนยืนยันออเดอร์</p>
+    <div class="table-input-wrap">
+      <div class="table-prefix">โต๊ะ</div>
+      <input class="table-num-input" type="number" id="table-num-input" placeholder="?" min="1" max="99">
+    </div>
+    <button class="modal-confirm-btn" onclick="confirmOrder()">✅ ยืนยันสั่งอาหาร</button>
+    <button class="modal-cancel-btn" onclick="closeTableModal()">ยกเลิก</button>
+  </div>
+</div>
+
+<!-- MODAL: ออเดอร์เสร็จ -->
+<div class="modal-overlay" id="done-modal">
+  <div class="modal">
+    <div class="order-done-icon">🎉</div>
+    <h3>รับออเดอร์แล้ว!</h3>
+    <p id="done-modal-sub">ครัวกำลังทำอาหารให้คุณ</p>
+    <button class="modal-confirm-btn" onclick="closeDoneModal()">+ สั่งอาหารเพิ่ม</button>
+    <button class="modal-cancel-btn" onclick="goToBill()">📋 ดูยอดรวมโต๊ะ</button>
+  </div>
+</div>
+
+<!-- MODAL: QR Code -->
+<div class="modal-overlay" id="qr-modal">
+  <div class="qr-modal-box">
+    <h3>สแกน QR Code</h3>
+    <p>ใส่ URL ของเว็บแล้วกดสร้าง QR</p>
+    <input class="url-input-field" type="url" id="qr-url-input" placeholder="https://yoursite.com/menu">
+    <button class="modal-close" style="margin-bottom:12px;background:var(--success);" onclick="buildQR()">🔄 สร้าง QR Code</button>
+    <div id="qr-box" style="width:180px;height:180px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;"></div>
+    <p id="qr-url-label" style="font-size:11px;color:#999;word-break:break-all;margin-bottom:8px;"></p>
+    <button class="modal-close" onclick="closeQR()">ปิด</button>
+  </div>
+</div>
+
+<!-- MODAL: PIN เจ้าของร้าน -->
+<div class="modal-overlay" id="pin-modal">
+  <div class="pin-modal">
+    <div style="font-size:48px;margin-bottom:10px;">🔐</div>
+    <h3>รหัสเจ้าของร้าน</h3>
+    <p>กรอก PIN เพื่อดูยอดราคา<br><span style="font-size:12px;">(ค่าเริ่มต้น: 1234)</span></p>
+    <input class="pin-input" type="password" id="pin-input" maxlength="4" placeholder="••••" oninput="clearPinError()">
+    <div class="pin-error" id="pin-error"></div>
+    <button class="modal-confirm-btn" onclick="submitPin()">เข้าสู่โหมดเจ้าของร้าน</button>
+    <button class="modal-cancel-btn" onclick="closePinModal()">ยกเลิก</button>
+  </div>
+</div>
+
+<script>
+const MENU = {
+  'อาหารจานหลัก': [
+    { id: 1, name: 'ข้าวผัดกะเพราไก่', desc: 'กะเพราหอม ไข่ดาว รสจัดจ้าน', price: 65, emoji: '🍳' },
+    { id: 2, name: 'ต้มยำกุ้ง', desc: 'กุ้งสด เห็ด ตะไคร้ ใบมะกรูด', price: 130, emoji: '🍲' },
+    { id: 3, name: 'แกงเขียวหวานไก่', desc: 'กะทิสด มะเขือ ใบโหระพา', price: 100, emoji: '🥘' },
+    { id: 4, name: 'ผัดไทยกุ้งสด', desc: 'เส้นจันท์ กุ้งสด ถั่วงอก มะนาว', price: 110, emoji: '🍜' },
+    { id: 5, name: 'ข้าวมันไก่', desc: 'ไก่นุ่ม ซอสพิเศษ น้ำซุปใส', price: 75, emoji: '🍗' },
+    { id: 6, name: 'ส้มตำไทย', desc: 'มะละกอสด กุ้งแห้ง ถั่วลิสง', price: 65, emoji: '🥗' },
+  ],
+  'อาหารทะเล': [
+    { id: 7, name: 'ปลาทอดน้ำปลา', desc: 'ปลาสด ทอดกรอบ กระเทียมพริก', price: 160, emoji: '🐟' },
+    { id: 8, name: 'กุ้งอบวุ้นเส้น', desc: 'กุ้งสด วุ้นเส้น ขึ้นฉ่าย', price: 195, emoji: '🦐' },
+    { id: 9, name: 'หอยแมลงภู่ผัดพริก', desc: 'หอยสด พริกสด ใบโหระพา', price: 170, emoji: '🦪' },
+  ],
+  'ของทานเล่น': [
+    { id: 10, name: 'ปอเปี๊ยะทอด', desc: '5 ชิ้น ไส้ผัก กรอบอร่อย', price: 55, emoji: '🥟' },
+    { id: 11, name: 'ไก่ทอดกระเทียม', desc: 'ไก่กรอบนอกนุ่มใน', price: 85, emoji: '🍖' },
+    { id: 12, name: 'ข้าวเกรียบกุ้ง', desc: 'กรอบ หอม อร่อย', price: 45, emoji: '🍘' },
+  ],
+  'เครื่องดื่ม': [
+    { id: 13, name: 'ชาไทยเย็น', desc: 'ชาไทยแท้ นมข้นหวาน', price: 40, emoji: '🧋' },
+    { id: 14, name: 'น้ำมะนาว', desc: 'มะนาวสด หวานเปรี้ยว ชื่นใจ', price: 35, emoji: '🍋' },
+    { id: 15, name: 'น้ำเต้าหู้', desc: 'เต้าหู้แท้ หวานน้อย', price: 25, emoji: '🥛' },
+    { id: 16, name: 'โค้ก / เป๊ปซี่', desc: 'น้ำอัดลม กระป๋อง', price: 25, emoji: '🥤' },
+    { id: 17, name: 'น้ำเปล่า', desc: 'น้ำดื่มบริสุทธิ์', price: 15, emoji: '💧' },
+  ],
+  'ของหวาน': [
+    { id: 18, name: 'ข้าวเหนียวมะม่วง', desc: 'มะม่วงสุก ข้าวเหนียว กะทิ', price: 85, emoji: '🥭' },
+    { id: 19, name: 'กล้วยบวชชี', desc: 'กล้วยน้ำว้า กะทิ ใบเตย', price: 50, emoji: '🍌' },
+    { id: 20, name: 'ไอศกรีมกะทิ', desc: 'กะทิแท้ ถั่วแดง ข้าวเหนียว', price: 60, emoji: '🍨' },
+  ]
+};
+
+let cart = {};
+let orders = [];
+let tableTabs = {};
+let orderCounter = 1;
+let activeCategory = Object.keys(MENU)[0];
+let lastOrderedTable = null;
+
+function init() {
+  renderCategoryTabs();
+  renderMenu();
+  updateKitchenTime();
+  setInterval(updateKitchenTime, 1000);
+}
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if (id === 'cart') renderCart();
+  if (id === 'kitchen') renderKitchen();
+  if (id === 'bill') refreshBillAccess();
+  window.scrollTo(0, 0);
+}
+
+function refreshBillAccess() {
+  const customer = document.getElementById('bill-customer');
+  const owner = document.getElementById('bill-owner');
+  const notable = document.getElementById('bill-notable');
+  const sub = document.getElementById('bill-header-sub');
+
+  customer.style.display = 'none';
+  owner.style.display = 'none';
+  notable.style.display = 'none';
+
+  if (ownerMode) {
+    owner.style.display = 'block';
+    sub.textContent = 'โหมดเจ้าของร้าน';
+  } else if (lastOrderedTable) {
+    customer.style.display = 'block';
+    sub.textContent = 'โต๊ะ ' + lastOrderedTable;
+    renderCustomerBill(lastOrderedTable);
+  } else {
+    notable.style.display = 'block';
+    sub.textContent = '';
+  }
+}
+
+function renderCustomerBill(tableNum) {
+  const tab = tableTabs[tableNum];
+  const content = document.getElementById('bill-content-customer');
+  if (!tab || !tab.length) {
+    content.innerHTML = `<div class="bill-empty">🧾 ยังไม่มีออเดอร์ในโต๊ะ ${tableNum}</div>`;
+    return;
+  }
+  const total = tab.reduce((s, o) => s + o.subtotal, 0);
+  const beforeVat = Math.round(total / 1.07);
+  const vat = total - beforeVat;
+  content.innerHTML = `
+    <div class="bill-table-header">โต๊ะ ${tableNum} — ${tab.length} ออเดอร์</div>
+    ${tab.map(o => `
+      <div class="bill-order-block">
+        <div class="bill-order-head">
+          <span class="bill-order-label">ออเดอร์ #${o.id} ${o.done ? '✅ เสิร์ฟแล้ว' : '🔥 กำลังทำ'}</span>
+          <span class="bill-order-time">${o.time} น.</span>
+        </div>
+        ${o.items.map(i => `
+          <div class="bill-item-row">
+            <span>${i.emoji} ${i.name} ×${i.qty}</span>
+            <span>฿${i.price * i.qty}</span>
+          </div>
+        `).join('')}
+        ${o.note ? `<div class="bill-item-row" style="color:var(--text-muted);font-size:13px;"><span>📝 ${o.note}</span><span></span></div>` : ''}
+      </div>
+    `).join('')}
+    <div class="bill-grand">
+      <div style="width:100%;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;color:var(--text-muted);">
+          <span>ราคาก่อนภาษี</span><span>฿${beforeVat}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:13px;color:var(--text-muted);">
+          <span>ภาษีมูลค่าเพิ่ม 7%</span><span>฿${vat}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px dashed var(--border);padding-top:10px;">
+          <div class="bill-grand-label">ยอดรวมทั้งหมด</div>
+          <div class="bill-grand-amount">฿${total}</div>
+        </div>
+      </div>
+    </div>
+    <div class="bill-counter-note">💳 กรุณาชำระเงินที่เคาน์เตอร์</div>
+  `;
+}
+
+function lookupBill() {
+  const tableNum = document.getElementById('bill-table-input').value.trim();
+  const content = document.getElementById('bill-content-owner');
+  if (!tableNum) {
+    content.innerHTML = `<div class="bill-empty">กรอกเลขโต๊ะก่อนนะครับ 🙏</div>`;
+    return;
+  }
+  const tab = tableTabs[tableNum];
+  if (!tab || !tab.length) {
+    content.innerHTML = `<div class="bill-empty">❌ ยังไม่มีออเดอร์จากโต๊ะ ${tableNum}</div>`;
+    return;
+  }
+  const total = tab.reduce((s, o) => s + o.subtotal, 0);
+  const beforeVat = Math.round(total / 1.07);
+  const vat = total - beforeVat;
+  content.innerHTML = `
+    <div class="bill-table-header">โต๊ะ ${tableNum} — ${tab.length} ออเดอร์</div>
+    ${tab.map(o => `
+      <div class="bill-order-block">
+        <div class="bill-order-head">
+          <span class="bill-order-label">ออเดอร์ #${o.id} ${o.done ? '✅ เสิร์ฟแล้ว' : '🔥 กำลังทำ'}</span>
+          <span class="bill-order-time">${o.time} น.</span>
+        </div>
+        ${o.items.map(i => `
+          <div class="bill-item-row">
+            <span>${i.emoji} ${i.name} ×${i.qty}</span>
+            <span>฿${i.price * i.qty}</span>
+          </div>
+        `).join('')}
+        ${o.note ? `<div class="bill-item-row" style="color:var(--text-muted);font-size:13px;"><span>📝 ${o.note}</span><span></span></div>` : ''}
+        <div class="bill-item-row" style="font-weight:600;background:var(--bg);"><span>รวมออเดอร์นี้</span><span>฿${o.subtotal}</span></div>
+      </div>
+    `).join('')}
+    <div class="bill-grand">
+      <div style="width:100%;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;color:var(--text-muted);">
+          <span>ราคาก่อนภาษี</span><span>฿${beforeVat}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:13px;color:var(--text-muted);">
+          <span>ภาษีมูลค่าเพิ่ม 7%</span><span>฿${vat}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px dashed var(--border);padding-top:10px;">
+          <div class="bill-grand-label">ยอดรวมทั้งหมด</div>
+          <div class="bill-grand-amount">฿${total}</div>
+        </div>
+      </div>
+    </div>
+    <div class="bill-counter-note">💳 กรุณาชำระเงินที่เคาน์เตอร์</div>
+  `;
+}
+
+function renderCategoryTabs() {
+  document.getElementById('cat-tabs').innerHTML = Object.keys(MENU).map(cat => `
+    <button class="cat-tab ${cat === activeCategory ? 'active' : ''}" onclick="setCategory('${cat}')">${cat}</button>
+  `).join('');
+}
+
+function setCategory(cat) {
+  activeCategory = cat;
+  renderCategoryTabs();
+  renderMenu();
+}
+
+function renderMenu() {
+  document.getElementById('menu-list').innerHTML = MENU[activeCategory].map(item => `
+    <div class="menu-item">
+      <div class="menu-emoji">${item.emoji}</div>
+      <div class="menu-info">
+        <div class="menu-name">${item.name}</div>
+        <div class="menu-desc">${item.desc}</div>
+        <div class="menu-price">฿${item.price}</div>
+      </div>
+      <div class="menu-actions">
+        <button class="qty-btn" onclick="changeQty(${item.id}, -1)">−</button>
+        <span class="qty-display" id="qty-${item.id}">${cart[item.id]?.qty || 0}</span>
+        <button class="qty-btn" onclick="changeQty(${item.id}, 1, '${item.name}', ${item.price}, '${item.emoji}')">+</button>
+      </div>
+    </div>
+  `).join('');
+  updateCartBar();
+}
+
+function changeQty(id, delta, name, price, emoji) {
+  if (!cart[id] && delta > 0) cart[id] = { id, name, price, emoji, qty: 0 };
+  if (!cart[id]) return;
+  cart[id].qty += delta;
+  if (cart[id].qty <= 0) delete cart[id];
+  const el = document.getElementById('qty-' + id);
+  if (el) el.textContent = cart[id]?.qty || 0;
+  updateCartBar();
+}
+
+function updateCartBar() {
+  const total = Object.values(cart).reduce((s, i) => s + i.price * i.qty, 0);
+  const count = Object.values(cart).reduce((s, i) => s + i.qty, 0);
+  const bar = document.getElementById('cart-bar');
+  bar.style.display = count > 0 ? 'flex' : 'none';
+  document.getElementById('cart-count').textContent = count;
+  document.getElementById('cart-bar-total').textContent = '฿' + total;
+}
+
+function renderCart() {
+  const items = Object.values(cart);
+  if (items.length === 0) {
+    document.getElementById('cart-list').innerHTML = `<div class="empty-cart"><div class="empty-icon">🛒</div><p>ยังไม่มีรายการ<br>กลับไปเลือกเมนูก่อนนะครับ</p></div>`;
+    document.getElementById('cart-summary').innerHTML = '';
+    document.getElementById('order-btn').disabled = true;
+    return;
+  }
+  document.getElementById('order-btn').disabled = false;
+  document.getElementById('cart-list').innerHTML = items.map(i => `
+    <div class="cart-item">
+      <div class="cart-item-emoji">${i.emoji}</div>
+      <div class="cart-item-info">
+        <div class="cart-item-name">${i.name}</div>
+        <div class="cart-item-price">฿${i.price} × ${i.qty} ชิ้น</div>
+      </div>
+      <div class="cart-item-total">฿${i.price * i.qty}</div>
+      <button class="cart-remove" onclick="removeItem(${i.id})">🗑</button>
+    </div>
+  `).join('');
+  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
+  document.getElementById('cart-summary').innerHTML = `
+    <div class="summary-row"><span>รวมออเดอร์นี้</span><span>฿${subtotal}</span></div>
+    <div class="summary-row total"><span>ยอดรวม</span><span>฿${subtotal}</span></div>
+  `;
+}
+
+function removeItem(id) {
+  delete cart[id];
+  renderCart();
+  updateCartBar();
+  const el = document.getElementById('qty-' + id);
+  if (el) el.textContent = 0;
+}
+
+function openTableModal() {
+  if (Object.values(cart).length === 0) return;
+  document.getElementById('table-num-input').value = lastOrderedTable || '';
+  document.getElementById('table-num-input').style.outline = '';
+  document.getElementById('table-modal').classList.add('open');
+  setTimeout(() => document.getElementById('table-num-input').focus(), 150);
+}
+
+function closeTableModal() {
+  document.getElementById('table-modal').classList.remove('open');
+}
+
+function confirmOrder() {
+  const val = document.getElementById('table-num-input').value.trim();
+  if (!val || isNaN(val) || +val < 1) {
+    document.getElementById('table-num-input').style.outline = '2px solid #e74c3c';
+    document.getElementById('table-num-input').focus();
+    return;
+  }
+  closeTableModal();
+  placeOrder(val);
+}
+
+function placeOrder(tableNum) {
+  const items = Object.values(cart);
+  if (!items.length) return;
+  const note = document.getElementById('order-note').value;
+  const now = new Date();
+  const timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  const order = {
+    id: orderCounter++, table: tableNum,
+    items: items.map(i => ({...i})),
+    note, time: timeStr, done: false,
+    subtotal: items.reduce((s, i) => s + i.price * i.qty, 0)
+  };
+  orders.unshift(order);
+  if (!tableTabs[tableNum]) tableTabs[tableNum] = [];
+  tableTabs[tableNum].push(order);
+  lastOrderedTable = tableNum;
+
+  cart = {};
+  document.getElementById('order-note').value = '';
+  Object.keys(MENU).flatMap(k => MENU[k]).forEach(item => {
+    const el = document.getElementById('qty-' + item.id);
+    if (el) el.textContent = 0;
+  });
+  updateCartBar();
+
+  document.getElementById('done-modal-sub').textContent = `โต๊ะ ${tableNum} — ออเดอร์ #${order.id} รับแล้ว ครัวกำลังทำ 🍳`;
+  document.getElementById('done-modal').classList.add('open');
+}
+
+function closeDoneModal() {
+  document.getElementById('done-modal').classList.remove('open');
+  showPage('menu');
+}
+
+function goToBill() {
+  document.getElementById('done-modal').classList.remove('open');
+  showPage('bill');
+  if (ownerMode) {
+    document.getElementById('bill-table-input').value = lastOrderedTable || '';
+    if (lastOrderedTable) lookupBill();
+  }
+}
+
+function renderKitchen() {
+  const list = document.getElementById('kitchen-list');
+  if (!orders.length) {
+    list.innerHTML = `<div class="kitchen-empty"><div class="k-empty-icon">🍳</div><p style="color:#555">ยังไม่มีออเดอร์เข้ามา</p></div>`;
+    return;
+  }
+  list.innerHTML = orders.map(o => `
+    <div class="kitchen-order-card ${o.done ? 'done' : ''}">
+      <div class="k-order-top">
+        <div class="k-order-num">📋 ออเดอร์ #${o.id} — โต๊ะ ${o.table}</div>
+        <div class="k-order-time">🕐 ${o.time}</div>
+      </div>
+      <ul class="k-items">
+        ${o.items.map(i => `<li><span class="k-qty">×${i.qty}</span> ${i.emoji} ${i.name}</li>`).join('')}
+      </ul>
+      ${o.note ? `<div class="k-note">📝 ${o.note}</div>` : ''}
+      <button class="k-done-btn ${o.done ? 'undo' : ''}" onclick="toggleDone(${o.id})">
+        ${o.done ? '↩ ยกเลิกเสร็จ' : '✅ เสร็จแล้ว / เสิร์ฟแล้ว'}
+      </button>
+    </div>
+  `).join('');
+}
+
+function toggleDone(id) {
+  const o = orders.find(x => x.id === id);
+  if (o) o.done = !o.done;
+  renderKitchen();
+}
+
+function updateKitchenTime() {
+  const el = document.getElementById('kitchen-time');
+  if (el) el.textContent = new Date().toLocaleTimeString('th-TH');
+}
+
+// ===== OWNER MODE =====
+let ownerMode = false;
+const OWNER_PIN = '1234';
+
+function toggleOwnerMode() {
+  if (ownerMode) {
+    ownerMode = false;
+    const btn = document.getElementById('owner-btn');
+    btn.textContent = '🔒 เจ้าของร้าน';
+    btn.classList.remove('active');
+    refreshBillAccess();
+  } else {
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-error').textContent = '';
+    document.getElementById('pin-modal').classList.add('open');
+    setTimeout(() => document.getElementById('pin-input').focus(), 150);
+  }
+}
+
+function submitPin() {
+  const val = document.getElementById('pin-input').value;
+  if (val === OWNER_PIN) {
+    ownerMode = true;
+    const btn = document.getElementById('owner-btn');
+    btn.innerHTML = '🔓 โหมดเจ้าของร้าน';
+    btn.classList.add('active');
+    closePinModal();
+    refreshBillAccess();
+  } else {
+    document.getElementById('pin-error').textContent = '❌ รหัสไม่ถูกต้อง ลองใหม่อีกครั้ง';
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-input').focus();
+  }
+}
+
+function clearPinError() { document.getElementById('pin-error').textContent = ''; }
+function closePinModal() { document.getElementById('pin-modal').classList.remove('open'); }
+
+document.addEventListener('keydown', e => {
+  if (document.getElementById('pin-modal').classList.contains('open') && e.key === 'Enter') submitPin();
+});
+
+// ===== QR CODE =====
+function generateQR() {
+  const box = document.getElementById('qr-box');
+  box.innerHTML = '';
+  document.getElementById('qr-url-input').value = window.location.href;
+}
+
+function buildQR() {
+  const url = document.getElementById('qr-url-input').value.trim();
+  if (!url) return;
+  const box = document.getElementById('qr-box');
+  box.innerHTML = '';
+  new QRCode(box, {
+    text: url, width: 180, height: 180,
+    colorDark: '#1a0a00', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+  document.getElementById('qr-url-label').textContent = url;
+}
+function openQR() { document.getElementById('qr-modal').classList.add('open'); }
+function closeQR() { document.getElementById('qr-modal').classList.remove('open'); }
+
+document.getElementById('table-num-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmOrder();
+  document.getElementById('table-num-input').style.outline = '';
+});
+document.getElementById('bill-table-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') lookupBill();
+});
+
+init();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" onload="generateQR()"></script>
+</body>
+</html>
